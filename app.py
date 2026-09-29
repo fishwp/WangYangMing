@@ -1,20 +1,31 @@
 import os
-import streamlit as st
+from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+import streamlit as st
 
 load_dotenv()
+
+BASE_DIR = Path(__file__).parent
+PROMPT_PATH = BASE_DIR / "agent" / "prompt.md"
+
+def load_system_prompt() -> str:
+    if PROMPT_PATH.exists():
+        return PROMPT_PATH.read_text(encoding="utf-8")
+    return "你是王阳明风格的行动陪伴助手，简洁、务实、知行合一，每次最多问一个问题。"
 
 client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY"),
     base_url="https://api.deepseek.com",
 )
 
-st.title("王阳明行动陪伴智能体（第 1 周 Demo）")
+st.set_page_config(page_title="知行陪伴者", page_icon="🧭")
+st.title("知行陪伴者")
+st.caption("帮你看清知与行之间那道缝隙，一次只走一步。")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": "你是王阳明风格的行动陪伴助手，用简洁、务实、知行合一的方式回应。"}
+        {"role": "system", "content": load_system_prompt()}
     ]
 
 for msg in st.session_state.messages:
@@ -22,7 +33,7 @@ for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-if prompt := st.chat_input("说说你此刻的困惑或想做的事…"):
+if prompt := st.chat_input("说说你此刻卡住的事…"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
@@ -30,14 +41,20 @@ if prompt := st.chat_input("说说你此刻的困惑或想做的事…"):
     with st.chat_message("assistant"):
         placeholder = st.empty()
         full = ""
-        stream = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=st.session_state.messages,
-            stream=True,
-        )
-        for chunk in stream:
-            delta = chunk.choices[0].delta.content or ""
-            full += delta
-            placeholder.write(full)
+        try:
+            stream = client.chat.completions.create(
+                model="deepseek-chat",
+                messages=st.session_state.messages,
+                stream=True,
+                temperature=0.7,
+                max_tokens=800,
+            )
+            for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                full += delta
+                placeholder.write(full)
+        except Exception as e:
+            placeholder.error(f"出错了：{e}")
+            full = "（本次回复失败，请检查网络或 API 配置）"
 
     st.session_state.messages.append({"role": "assistant", "content": full})
