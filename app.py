@@ -1,23 +1,6 @@
-import os
-from pathlib import Path
-from dotenv import load_dotenv
-from openai import OpenAI
 import streamlit as st
-
-load_dotenv()
-
-BASE_DIR = Path(__file__).parent
-PROMPT_PATH = BASE_DIR / "agent" / "prompt.md"
-
-def load_system_prompt() -> str:
-    if PROMPT_PATH.exists():
-        return PROMPT_PATH.read_text(encoding="utf-8")
-    return "你是王阳明风格的行动陪伴助手，简洁、务实、知行合一，每次最多问一个问题。"
-
-client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
-    base_url="https://api.deepseek.com",
-)
+from src.agent import stream_agent_reply
+from src.prompts import SYSTEM_PROMPT
 
 st.set_page_config(page_title="知行陪伴者", page_icon="🧭")
 st.title("知行陪伴者")
@@ -25,7 +8,7 @@ st.caption("帮你看清知与行之间那道缝隙，一次只走一步。")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "system", "content": load_system_prompt()}
+        {"role": "system", "content": SYSTEM_PROMPT}
     ]
 
 for msg in st.session_state.messages:
@@ -42,15 +25,7 @@ if prompt := st.chat_input("说说你此刻卡住的事…"):
         placeholder = st.empty()
         full = ""
         try:
-            stream = client.chat.completions.create(
-                model="deepseek-chat",
-                messages=st.session_state.messages,
-                stream=True,
-                temperature=0.7,
-                max_tokens=800,
-            )
-            for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
+            for delta in stream_agent_reply(st.session_state.messages):
                 full += delta
                 placeholder.write(full)
         except Exception as e:
