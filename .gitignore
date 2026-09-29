@@ -4,7 +4,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .vscode/
-data/user_data/
+data/user_data/*
+!data/user_data/.gitkeep
 .streamlit/
 logs/
 venv/

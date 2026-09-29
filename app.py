@@ -1,3 +1,4 @@
+# 启动方式：D:\Anaconda\envs\wangyangming\python.exe -m streamlit run app.py
 import streamlit as st
 from src.agent import stream_agent_reply
 from src.prompts import SYSTEM_PROMPT
